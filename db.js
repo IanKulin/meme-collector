@@ -35,7 +35,12 @@ async function dbSaveLink(url, datetime) {
 }
 
 async function dbGetRecords() {
-  return await db.all("SELECT id, url, datetime FROM images");
+  try {
+    return await db.all("SELECT id, url, datetime, filename FROM images");
+  } catch (error) {
+    console.error("Error fetching records:", error);
+    throw error;
+  }
 }
 
 async function dbGetRecordById(id) {
