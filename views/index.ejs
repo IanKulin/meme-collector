@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>meme-collect</title>
+    <style>
+        /* Style images to prevent stretching */
+        img {
+            max-width: 100%; /* Constrain images to the container's width */
+            height: auto;   /* Maintain aspect ratio */
+            display: block; /* Remove inline spacing below the image */
+        }
+
+        main {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <!-- Loop through imageRecords and display them -->
+        <% imageRecords.forEach((record) => { %>
+            <a href="<%= record.url %>"><img src="<%= record.filename %>" alt="Image"></a>
+        <% }) %>
+        <p></p>
+    </main>
+</body>
+</html>
