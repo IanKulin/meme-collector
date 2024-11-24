@@ -11,6 +11,7 @@ COPY ./*.js .
 COPY ./readme.md .
 COPY ./LICENSE .
 COPY ./public/ ./public/
+COPY ./views/ ./views/
 
 EXPOSE 3000
 
