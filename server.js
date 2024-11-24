@@ -11,6 +11,8 @@ import {
 import fs from "fs";
 import { pipeline } from "stream/promises";
 import fetch from "node-fetch";
+import path from 'path';
+import mime from 'mime-types';
 
 dotenv.config();
 
@@ -18,9 +20,9 @@ const app = express();
 const port = 3000;
 
 // two minute trigger for image collection
-const updateTime = 3 * 60 * 1000;
+const updateTime = 1 * 60 * 1000;
 // stop downloading this much time before the next update
-const downloadTime = 1 * 60 * 1000;
+const downloadTime = 0.5 * 60 * 1000;
 
 const API_KEY = process.env.API_KEY;
 const URL = process.env.URL;
@@ -70,24 +72,39 @@ async function downloadImage(id, url, datetime, hash) {
   try {
     // Save the metadata to the local database
     const newRecord = await dbSaveLink(url, datetime);
-    const fileExtension = url.split(".").pop();
-    const filename = `public/images/${newRecord.lastID}.${fileExtension}`;
+    
     // Fetch the image
     const imageResponse = await fetch(url);
     if (!imageResponse.ok) {
-      dbDeleteLink(newRecord.lastID);
+      await dbDeleteLink(newRecord.lastID);
       await markAsFailed(id, hash);
       console.log(`Failed to fetch image: ${imageResponse.statusText}`);
       return;
     }
-    // Validate content type
+
+    // Validate and get content type
     const contentType = imageResponse.headers.get("content-type");
     if (!contentType?.startsWith("image/")) {
-      dbDeleteLink(newRecord.lastID);
+      await dbDeleteLink(newRecord.lastID);
       await markAsFailed(id, hash);
       console.log(`Invalid content type: ${contentType} for url: ${url}`);
       return;
     }
+
+    // Determine file extension
+    let fileExtension = mime.extension(contentType);
+    if (!fileExtension) {
+      // Fallback to URL parsing if mime-types doesn't recognize the content type
+      const urlPath = new URL(url).pathname;
+      fileExtension = path.extname(urlPath).slice(1);
+    }
+    if (!fileExtension) {
+      // If still no extension, use a default
+      fileExtension = 'jpg';
+    }
+
+    const filename = `public/images/${newRecord.lastID}.${fileExtension}`;
+
     try {
       // Stream the image to the file
       await pipeline(imageResponse.body, fs.createWriteStream(filename));
@@ -98,7 +115,7 @@ async function downloadImage(id, url, datetime, hash) {
     } catch (error) {
       // Clean up partial file if there's an error
       try {
-        await fs.promises.unlink(filename);
+        await fs.unlink(filename);
       } catch (unlinkError) {
         console.error(`Failed to delete partial file: ${filename}`);
       }
@@ -106,7 +123,7 @@ async function downloadImage(id, url, datetime, hash) {
     }
   } catch (error) {
     await markAsFailed(id, hash);
-    console.error("Error downloading or saving image:", url);
+    console.error("Error downloading or saving image:", url, error);
   }
 }
 
